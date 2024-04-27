@@ -157,8 +157,6 @@ status_t I3C_ReadSensor (uint8_t deviceAddress, uint32_t regAddress, uint8_t * r
 
 status_t i3c_set_dynamic_address (I3C_Type * i3c, uint8_t staticAddr, uint8_t dynamicAddr)
 {
-
-    /* Assign dynamic address. */
     i3c_master_transfer_t masterXfer = { 0 };
     memset(&masterXfer, 0, sizeof(masterXfer));
     uint8_t txBuff[1]       = { CCC_RSTDAA };
@@ -175,7 +173,6 @@ status_t i3c_set_dynamic_address (I3C_Type * i3c, uint8_t staticAddr, uint8_t dy
         assert(0);
     }
 
-    /* Assign dynamic address. */
     memset(&masterXfer, 0, sizeof(masterXfer));
     txBuff[0]               = CCC_SETDASA;
     masterXfer.slaveAddress = I3C_BROADCAST_ADDR;
