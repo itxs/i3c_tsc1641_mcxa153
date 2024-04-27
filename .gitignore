@@ -1,0 +1,3 @@
+*.bak
+armgcc/debug
+__repo__
