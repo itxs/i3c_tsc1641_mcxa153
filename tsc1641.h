@@ -33,22 +33,16 @@
 #define TSC1641_Reg_Conf_CT_Offset   4U
 
 /*! @brief Define sensor access function. */
-typedef status_t (*sensor_write_transfer_func_t)(uint8_t deviceAddress,
-                                                 uint32_t regAddress,
-                                                 uint8_t * regData,
-                                                 size_t dataSize);
-typedef status_t (*sensor_read_transfer_func_t)(uint8_t deviceAddress,
-                                                uint32_t regAddress,
-                                                uint8_t * regData,
-                                                size_t dataSize);
+typedef status_t (*sensor_write_transfer_func_t)(uint8_t dev_addr, uint32_t reg_addr, uint8_t * data, size_t len);
+typedef status_t (*sensor_read_transfer_func_t)(uint8_t dev_addr, uint32_t reg_addr, uint8_t * data, size_t len);
 
 typedef struct _tsc1641_handle
 {
-    sensor_write_transfer_func_t writeTransfer;
-    sensor_read_transfer_func_t readTransfer;
-    uint8_t sensorAddress;
-    float shuntResistance;
-    void (*errDebugHandler)(status_t err);
+    sensor_write_transfer_func_t write_handler;
+    sensor_read_transfer_func_t read_handler;
+    uint8_t addr;
+    float shunt_val;
+    void (*dbg_log_handler)(status_t err);
 } tsc1641_handle_t;
 
 typedef enum
@@ -78,14 +72,14 @@ typedef enum
 
 typedef struct _tsc1641_config
 {
-    float shuntResistance;
-    sensor_write_transfer_func_t writeTransfer;
-    sensor_read_transfer_func_t readTransfer;
-    tsc1641_conv_time_t convTime;
+    float shunt_val;
+    sensor_write_transfer_func_t write_handler;
+    sensor_read_transfer_func_t read_handler;
+    tsc1641_conv_time_t conversion_time;
     tsc1641_mode_t mode;
-    uint8_t sensorAddress;
-    bool resetState;
-    bool enableTempSensor;
+    uint8_t addr;
+    bool reset_state;
+    bool temp_sensor_enable;
 } tsc1641_config_t;
 
 #if defined(__cplusplus)
@@ -100,7 +94,7 @@ extern "C" {
  *
  * @return kStatus_Success if success or kStatus_Fail if error.
  */
-status_t TSC1641_Init (tsc1641_handle_t * handle, const tsc1641_config_t * config);
+status_t tsc1641_init (tsc1641_handle_t * handle, const tsc1641_config_t * config);
 
 /*!
  * @brief Write Register with register data buffer.
@@ -112,7 +106,7 @@ status_t TSC1641_Init (tsc1641_handle_t * handle, const tsc1641_config_t * confi
  *
  * @return kStatus_Success if success or kStatus_Fail if error.
  */
-status_t TSC1641_WriteReg (tsc1641_handle_t * handle, uint32_t regAddress, uint8_t * regData, size_t dataSize);
+status_t tsc1641_write_reg (tsc1641_handle_t * handle, uint32_t regAddress, uint8_t * regData, size_t dataSize);
 
 /*!
  * @brief Read Register to speficied data buffer.
@@ -124,7 +118,7 @@ status_t TSC1641_WriteReg (tsc1641_handle_t * handle, uint32_t regAddress, uint8
  *
  * @return kStatus_Success if success or kStatus_Fail if error.
  */
-status_t TSC1641_ReadReg (tsc1641_handle_t * handle, uint32_t regAddress, uint8_t * regData, size_t dataSize);
+status_t tsc1641_read_reg (tsc1641_handle_t * handle, uint32_t regAddress, uint8_t * regData, size_t dataSize);
 
 /*!
  * @brief Read all data from sensor.
@@ -137,7 +131,11 @@ status_t TSC1641_ReadReg (tsc1641_handle_t * handle, uint32_t regAddress, uint8_
  *
  * @return kStatus_Success if success or kStatus_Fail if error.
  */
-status_t TSC1641_ReadAllData (tsc1641_handle_t * handle, float * voltage, float * current, float * power, float * temp);
+status_t tsc1641_read_all_data (tsc1641_handle_t * handle,
+                                float * voltage,
+                                float * current,
+                                float * power,
+                                float * temp);
 #if defined(__cplusplus)
 }
 #endif /* __cplusplus */

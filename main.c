@@ -43,12 +43,12 @@
 static void i3c_master_callback (I3C_Type * base, i3c_master_handle_t * handle, status_t status, void * userData);
 static void i3c_err_dbg_log (status_t err);
 
-static volatile status_t g_completionStatus;
-static volatile bool g_masterCompletionFlag;
+static volatile status_t g_completion_status;
+static volatile bool g_master_completion_flag;
 static i3c_master_handle_t g_i3c_m_handle;
-static tsc1641_handle_t g_tsc1641Handle                           = { .errDebugHandler = i3c_err_dbg_log };
-static const i3c_master_transfer_callback_t global_masterCallback = { NULL, NULL, i3c_master_callback };
-static const char * g_i3c_err_arr[]                               = {
+static tsc1641_handle_t g_tsc1641_handle                           = { .dbg_log_handler = i3c_err_dbg_log };
+static const i3c_master_transfer_callback_t global_master_callback = { NULL, NULL, i3c_master_callback };
+static const char * g_i3c_err_arr[]                                = {
     "The master is already performing a transfer",
     "The slave driver is idle",
     "The slave device sent a NAK in response to an address",
@@ -75,10 +75,10 @@ static void i3c_master_callback (I3C_Type * base, i3c_master_handle_t * handle, 
 {
     if (status == kStatus_Success)
     {
-        g_masterCompletionFlag = true;
+        g_master_completion_flag = true;
     }
 
-    g_completionStatus = status;
+    g_completion_status = status;
 }
 
 static void i3c_err_dbg_log (status_t err)
@@ -89,70 +89,72 @@ static void i3c_err_dbg_log (status_t err)
     }
 }
 
-status_t I3C_WriteSensor (uint8_t deviceAddress, uint32_t regAddress, uint8_t * regData, size_t dataSize)
+status_t I3C_WriteSensor (uint8_t dev_addr, uint32_t reg_addr, uint8_t * data, size_t len)
 {
     i3c_master_transfer_t masterXfer = { 0 };
-    masterXfer.slaveAddress          = deviceAddress;
+    masterXfer.slaveAddress          = dev_addr;
     masterXfer.direction             = kI3C_Write;
     masterXfer.busType               = kI3C_TypeI3CSdr;
-    masterXfer.subaddress            = regAddress;
+    masterXfer.subaddress            = reg_addr;
     masterXfer.subaddressSize        = 1;
-    masterXfer.data                  = regData;
-    masterXfer.dataSize              = dataSize;
+    masterXfer.data                  = data;
+    masterXfer.dataSize              = len;
     masterXfer.flags                 = kI3C_TransferDefaultFlag;
 
-    g_masterCompletionFlag = false;
-    g_completionStatus     = kStatus_Success;
-    status_t result        = I3C_MasterTransferNonBlocking(I3C0, &g_i3c_m_handle, &masterXfer);
+    g_master_completion_flag = false;
+    g_completion_status      = kStatus_Success;
+    status_t result          = I3C_MasterTransferNonBlocking(I3C0, &g_i3c_m_handle, &masterXfer);
+    i3c_err_dbg_log(result);
     if (kStatus_Success != result)
     {
         return result;
     }
 
     uint32_t timeout = 0U;
-    while (!g_masterCompletionFlag)
+    while (!g_master_completion_flag)
     {
         timeout++;
-        if ((g_completionStatus != kStatus_Success) || (timeout > I3C_TIME_OUT_INDEX))
+        if ((g_completion_status != kStatus_Success) || (timeout > I3C_TIME_OUT_INDEX))
         {
             break;
         }
     }
 
-    return (timeout == I3C_TIME_OUT_INDEX) ? kStatus_Timeout : g_completionStatus;
+    return (timeout == I3C_TIME_OUT_INDEX) ? kStatus_Timeout : g_completion_status;
 }
 
-status_t I3C_ReadSensor (uint8_t deviceAddress, uint32_t regAddress, uint8_t * regData, size_t dataSize)
+status_t I3C_ReadSensor (uint8_t dev_addr, uint32_t reg_addr, uint8_t * data, size_t len)
 {
     i3c_master_transfer_t masterXfer = { 0 };
-    masterXfer.slaveAddress          = deviceAddress;
+    masterXfer.slaveAddress          = dev_addr;
     masterXfer.direction             = kI3C_Read;
     masterXfer.busType               = kI3C_TypeI3CSdr;
-    masterXfer.subaddress            = regAddress;
+    masterXfer.subaddress            = reg_addr;
     masterXfer.subaddressSize        = 1;
-    masterXfer.data                  = regData;
-    masterXfer.dataSize              = dataSize;
+    masterXfer.data                  = data;
+    masterXfer.dataSize              = len;
     masterXfer.flags                 = kI3C_TransferDefaultFlag;
 
-    g_masterCompletionFlag = false;
-    g_completionStatus     = kStatus_Success;
-    status_t result        = I3C_MasterTransferNonBlocking(I3C0, &g_i3c_m_handle, &masterXfer);
+    g_master_completion_flag = false;
+    g_completion_status      = kStatus_Success;
+    status_t result          = I3C_MasterTransferNonBlocking(I3C0, &g_i3c_m_handle, &masterXfer);
+    i3c_err_dbg_log(result);
     if (kStatus_Success != result)
     {
         return result;
     }
 
     uint32_t timeout = 0U;
-    while (!g_masterCompletionFlag)
+    while (!g_master_completion_flag)
     {
         timeout++;
-        if ((g_completionStatus != kStatus_Success) || (timeout > I3C_TIME_OUT_INDEX))
+        if ((g_completion_status != kStatus_Success) || (timeout > I3C_TIME_OUT_INDEX))
         {
             break;
         }
     }
 
-    return (timeout == I3C_TIME_OUT_INDEX) ? kStatus_Timeout : g_completionStatus;
+    return (timeout == I3C_TIME_OUT_INDEX) ? kStatus_Timeout : g_completion_status;
 }
 
 status_t i3c_set_dynamic_address (I3C_Type * i3c, uint8_t staticAddr, uint8_t dynamicAddr)
@@ -167,10 +169,10 @@ status_t i3c_set_dynamic_address (I3C_Type * i3c, uint8_t staticAddr, uint8_t dy
     masterXfer.busType      = kI3C_TypeI3CSdr;
     masterXfer.flags        = kI3C_TransferDefaultFlag;
     status_t result         = I3C_MasterTransferBlocking(i3c, &masterXfer);
+    i3c_err_dbg_log(result);
     if (result != kStatus_Success)
     {
-        PRINTF("I3C Error: %s.\r\n", g_i3c_err_arr[result - kStatus_I3C_Busy]);
-        assert(0);
+        return result;
     }
 
     memset(&masterXfer, 0, sizeof(masterXfer));
@@ -182,10 +184,10 @@ status_t i3c_set_dynamic_address (I3C_Type * i3c, uint8_t staticAddr, uint8_t dy
     masterXfer.busType      = kI3C_TypeI3CSdr;
     masterXfer.flags        = kI3C_TransferNoStopFlag;
     result                  = I3C_MasterTransferBlocking(i3c, &masterXfer);
+    i3c_err_dbg_log(result);
     if (result != kStatus_Success)
     {
-        PRINTF("I3C Error: %s.\r\n", g_i3c_err_arr[result - kStatus_I3C_Busy]);
-        assert(0);
+        return result;
     }
 
     memset(&masterXfer, 0, sizeof(masterXfer));
@@ -197,11 +199,7 @@ status_t i3c_set_dynamic_address (I3C_Type * i3c, uint8_t staticAddr, uint8_t dy
     masterXfer.busType      = kI3C_TypeI3CSdr;
     masterXfer.flags        = kI3C_TransferDefaultFlag;
     result                  = I3C_MasterTransferBlocking(i3c, &masterXfer);
-    if (result != kStatus_Success)
-    {
-        PRINTF("I3C Error: %s.\r\n", g_i3c_err_arr[result - kStatus_I3C_Busy]);
-        assert(0);
-    }
+    i3c_err_dbg_log(result);
     return result;
 }
 
@@ -233,7 +231,7 @@ int main (void)
     masterConfig.enableMaster                 = kI3C_MasterOn;
     PRINTF("I3C_MASTER_CLOCK_FREQUENCY: %d\r\n", I3C_MASTER_CLOCK_FREQUENCY);
     I3C_MasterInit(I3C0, &masterConfig, I3C_MASTER_CLOCK_FREQUENCY);
-    I3C_MasterTransferCreateHandle(I3C0, &g_i3c_m_handle, &global_masterCallback, NULL);
+    I3C_MasterTransferCreateHandle(I3C0, &g_i3c_m_handle, &global_master_callback, NULL);
 
     status_t result = i3c_set_dynamic_address(I3C0, I2C_TSC1641_ADDR, SENSOR_ADDR);
     if (result != kStatus_Success)
@@ -243,15 +241,15 @@ int main (void)
     }
 
     tsc1641_config_t tsc1641Config;
-    tsc1641Config.writeTransfer    = I3C_WriteSensor;
-    tsc1641Config.readTransfer     = I3C_ReadSensor;
-    tsc1641Config.sensorAddress    = SENSOR_ADDR;
-    tsc1641Config.shuntResistance  = R_SHUNT_RESISTANCE;
-    tsc1641Config.mode             = TSC1641_Mode_VshloadCont;
-    tsc1641Config.convTime         = TSC1641_Conf_CT_1024;
-    tsc1641Config.resetState       = false;
-    tsc1641Config.enableTempSensor = true;
-    result                         = TSC1641_Init(&g_tsc1641Handle, &tsc1641Config);
+    tsc1641Config.write_handler      = I3C_WriteSensor;
+    tsc1641Config.read_handler       = I3C_ReadSensor;
+    tsc1641Config.addr               = SENSOR_ADDR;
+    tsc1641Config.shunt_val          = R_SHUNT_RESISTANCE;
+    tsc1641Config.mode               = TSC1641_Mode_VshloadCont;
+    tsc1641Config.conversion_time    = TSC1641_Conf_CT_1024;
+    tsc1641Config.reset_state        = false;
+    tsc1641Config.temp_sensor_enable = true;
+    result                           = tsc1641_init(&g_tsc1641_handle, &tsc1641Config);
     if (result != kStatus_Success)
     {
         PRINTF("TSC1641 init failed.\r\n");
@@ -262,7 +260,7 @@ int main (void)
 
     while (1)
     {
-        result = TSC1641_ReadAllData(&g_tsc1641Handle, &voltage, &current, &power, &temperature);
+        result = tsc1641_read_all_data(&g_tsc1641_handle, &voltage, &current, &power, &temperature);
         if (result != kStatus_Success)
         {
             PRINTF("TSC1641 read data failed.\r\n");

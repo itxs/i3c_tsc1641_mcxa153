@@ -10,9 +10,9 @@
 #define U16_REV(x) __REV16(x)
 
 #define ERR_DBG_LOG(err)                 \
-    if (handle->errDebugHandler != NULL) \
+    if (handle->dbg_log_handler != NULL) \
     {                                    \
-        handle->errDebugHandler(err);    \
+        handle->dbg_log_handler(err);    \
     }
 
 #define TSC1641_RShunt_c  1e-5f
@@ -22,61 +22,65 @@
 #define TSC1641_Current_c 2.5e-6f
 #define TSC1641_Temp_c    0.5f
 
-status_t TSC1641_Init (tsc1641_handle_t * handle, const tsc1641_config_t * config)
+status_t tsc1641_init (tsc1641_handle_t * handle, const tsc1641_config_t * config)
 {
     assert(handle != NULL);
     assert(config != NULL);
-    assert(config->writeTransfer != NULL);
-    assert(config->readTransfer != NULL);
-    assert(config->shuntResistance != 0);
+    assert(config->write_handler != NULL);
+    assert(config->read_handler != NULL);
+    assert(config->shunt_val != 0);
 
-    handle->writeTransfer   = config->writeTransfer;
-    handle->readTransfer    = config->readTransfer;
-    handle->sensorAddress   = config->sensorAddress;
-    handle->shuntResistance = config->shuntResistance;
+    handle->write_handler = config->write_handler;
+    handle->read_handler  = config->read_handler;
+    handle->addr          = config->addr;
+    handle->shunt_val     = config->shunt_val;
 
-    uint16_t reg    = (int32_t)roundf(handle->shuntResistance / TSC1641_RShunt_c);
+    uint16_t reg    = (int32_t)roundf(handle->shunt_val / TSC1641_RShunt_c);
     reg             = U16_REV(reg);
-    status_t result = TSC1641_WriteReg(handle, TSC1641_RegAdd_RShunt, (uint8_t *)&reg, sizeof(reg));
+    status_t result = tsc1641_write_reg(handle, TSC1641_RegAdd_RShunt, (uint8_t *)&reg, sizeof(reg));
     ERR_DBG_LOG(result);
     assert(result == kStatus_Success);
 
-    reg = config->resetState ? (1U << TSC1641_Reg_Conf_RST_Offset) : 0U;
-    reg |= config->mode | (config->convTime << TSC1641_Reg_Conf_CT_Offset)
-         | (config->enableTempSensor ? (1U << TSC1641_Reg_Conf_T_EN_Offset) : 0U);
+    reg = config->reset_state ? (1U << TSC1641_Reg_Conf_RST_Offset) : 0U;
+    reg |= config->mode | (config->conversion_time << TSC1641_Reg_Conf_CT_Offset)
+         | (config->temp_sensor_enable ? (1U << TSC1641_Reg_Conf_T_EN_Offset) : 0U);
     reg    = U16_REV(reg);
-    result = TSC1641_WriteReg(handle, TSC1641_RegAdd_Conf, (uint8_t *)&reg, sizeof(reg));
+    result = tsc1641_write_reg(handle, TSC1641_RegAdd_Conf, (uint8_t *)&reg, sizeof(reg));
     ERR_DBG_LOG(result);
     assert(result == kStatus_Success);
 
     return result;
 }
 
-status_t TSC1641_WriteReg (tsc1641_handle_t * handle, uint32_t regAddress, uint8_t * regData, size_t dataSize)
+status_t tsc1641_write_reg (tsc1641_handle_t * handle, uint32_t regAddress, uint8_t * regData, size_t dataSize)
 {
-    return handle->writeTransfer(handle->sensorAddress, regAddress, regData, dataSize);
+    return handle->write_handler(handle->addr, regAddress, regData, dataSize);
 }
 
-status_t TSC1641_ReadReg (tsc1641_handle_t * handle, uint32_t regAddress, uint8_t * regData, size_t dataSize)
+status_t tsc1641_read_reg (tsc1641_handle_t * handle, uint32_t regAddress, uint8_t * regData, size_t dataSize)
 {
-    return handle->readTransfer(handle->sensorAddress, regAddress, regData, dataSize);
+    return handle->read_handler(handle->addr, regAddress, regData, dataSize);
 }
 
-status_t TSC1641_ReadAllData (tsc1641_handle_t * handle, float * voltage, float * current, float * power, float * temp)
+status_t tsc1641_read_all_data (tsc1641_handle_t * handle,
+                                float * voltage,
+                                float * current,
+                                float * power,
+                                float * temp)
 {
     uint16_t data[4] = { 0, 0, 0, 0 };
-    status_t result  = TSC1641_ReadReg(handle, TSC1641_RegAdd_LoadV, (uint8_t *)&data[0], 2);
+    status_t result  = tsc1641_read_reg(handle, TSC1641_RegAdd_LoadV, (uint8_t *)&data[0], 2);
     ERR_DBG_LOG(result);
-    result = TSC1641_ReadReg(handle, TSC1641_RegAdd_Current, (uint8_t *)&data[1], 2);
+    result = tsc1641_read_reg(handle, TSC1641_RegAdd_Current, (uint8_t *)&data[1], 2);
     ERR_DBG_LOG(result);
-    result = TSC1641_ReadReg(handle, TSC1641_RegAdd_Power, (uint8_t *)&data[2], 2);
+    result = tsc1641_read_reg(handle, TSC1641_RegAdd_Power, (uint8_t *)&data[2], 2);
     ERR_DBG_LOG(result);
-    result = TSC1641_ReadReg(handle, TSC1641_RegAdd_Temp, (uint8_t *)&data[3], 2);
+    result = tsc1641_read_reg(handle, TSC1641_RegAdd_Temp, (uint8_t *)&data[3], 2);
     ERR_DBG_LOG(result);
     if (result == kStatus_Success)
     {
         *voltage = (float)(int16_t)U16_REV(data[0]) * TSC1641_LoadV_c;
-        *current = (float)(int16_t)U16_REV(data[1]) * TSC1641_Current_c / handle->shuntResistance;
+        *current = (float)(int16_t)U16_REV(data[1]) * TSC1641_Current_c / handle->shunt_val;
         *power   = (float)(int16_t)U16_REV(data[2]) * TSC1641_Power_c;
         *temp    = (float)(int16_t)U16_REV(data[3]) * TSC1641_Temp_c;
     }
