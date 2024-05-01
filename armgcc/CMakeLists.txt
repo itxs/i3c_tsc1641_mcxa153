@@ -52,8 +52,10 @@ add_executable(${MCUX_SDK_PROJECT_NAME}
 "${ProjDirPath}/../board.h"
 "${ProjDirPath}/../clock_config.c"
 "${ProjDirPath}/../clock_config.h"
-"${ProjDirPath}/../tsc1641.c"
-"${ProjDirPath}/../tsc1641.h"
+"${ProjDirPath}/../drivers/external/tsc1641.c"
+"${ProjDirPath}/../drivers/external/tsc1641.h"
+"${ProjDirPath}/../drivers/peripheral/i3c.c"
+"${ProjDirPath}/../drivers/peripheral/i3c.h"
 )
 
 target_include_directories(${MCUX_SDK_PROJECT_NAME} PRIVATE
