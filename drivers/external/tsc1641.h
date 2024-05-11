@@ -1,3 +1,9 @@
+/*
+ * Copyright Timur Khasanshin 2024
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 #ifndef TSC1641_H_
 #define TSC1641_H_
 

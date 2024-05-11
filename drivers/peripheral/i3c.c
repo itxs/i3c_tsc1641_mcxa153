@@ -1,3 +1,9 @@
+/*
+ * Copyright Timur Khasanshin 2024
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 #include "i3c.h"
 #include "MCXA153.h"
 #include "fsl_debug_console.h"
@@ -22,11 +28,15 @@
 
 static void i3c_master_callback (I3C_Type * base, i3c_master_handle_t * handle, status_t status, void * user_data);
 
-static volatile status_t g_completion_status;
-static volatile bool g_master_completion_flag;
-static i3c_master_handle_t g_i3c_m_handle;
+static volatile status_t g_completion_status;  /**< Buffer to store the I3C transfer completion status */
+static volatile bool g_master_completion_flag; /**< Flag indicating that started I3C transfer is completed */
+static i3c_master_handle_t g_i3c_m_handle;     /**< Handle for I3C master instance */
+/**< Structure with calback functions for I3C master events */
 static const i3c_master_transfer_callback_t global_master_callback = { NULL, NULL, i3c_master_callback };
 
+/**
+ * @brief Initializes the I3C master module.
+ */
 void i3c_init (void)
 {
     i3c_master_config_t masterConfig;
@@ -44,6 +54,21 @@ void i3c_init (void)
     I3C_MasterTransferCreateHandle(I3C0, &g_i3c_m_handle, &global_master_callback, NULL);
 }
 
+/**
+ * @brief Writes data to a specified register of a device on the I3C bus.
+ *
+ * This function initiates a non-blocking write transfer to the specified device
+ * at the given register address. It waits for the transfer to complete or timeout.
+ *
+ * @param dev_addr  The 7-bit I2C device address.
+ * @param reg_addr  The register address to write to.
+ * @param data      Pointer to the data to be written.
+ * @param len       The number of bytes to write.
+ *
+ * @return status_t  Returns kStatus_Success if the transfer is successful,
+ *                   kStatus_Timeout if the transfer times out, or an error code
+ *                   from the I3C driver if the transfer fails.
+ */
 status_t i3c_write (uint8_t dev_addr, uint32_t reg_addr, uint8_t * data, size_t len)
 {
     i3c_master_transfer_t master_xfer = { 0 };
@@ -78,6 +103,21 @@ status_t i3c_write (uint8_t dev_addr, uint32_t reg_addr, uint8_t * data, size_t 
     return (timeout == I3C_TIME_OUT_INDEX) ? kStatus_Timeout : g_completion_status;
 }
 
+/**
+ * @brief Reads data from a specified register of a device on the I3C bus.
+ *
+ * This function initiates a non-blocking read transfer to the specified device
+ * at the given register address. It waits for the transfer to complete or timeout.
+ *
+ * @param dev_addr  The 7-bit I2C device address.
+ * @param reg_addr  The register address to read from.
+ * @param data      Pointer to the buffer where the read data will be stored.
+ * @param len       The number of bytes to read.
+ *
+ * @return status_t  Returns kStatus_Success if the transfer is successful,
+ *                   kStatus_Timeout if the transfer times out, or an error code
+ *                   from the I3C driver if the transfer fails.
+ */
 status_t i3c_read (uint8_t dev_addr, uint32_t reg_addr, uint8_t * data, size_t len)
 {
     i3c_master_transfer_t master_xfer = { 0 };
@@ -112,6 +152,23 @@ status_t i3c_read (uint8_t dev_addr, uint32_t reg_addr, uint8_t * data, size_t l
     return (timeout == I3C_TIME_OUT_INDEX) ? kStatus_Timeout : g_completion_status;
 }
 
+/**
+ * @brief Sets the dynamic address of a device on the I3C bus.
+ *
+ * This function performs a sequence of I3C transactions to set the dynamic
+ * address of a device. It first sends a Reset Device Address (RSTDAA) command
+ * to all devices on the bus, then sends a Set Device Address (SETDASA) command
+ * to the device with the specified static address, and finally writes the new
+ * dynamic address to the device.
+ *
+ * @param i3c       Pointer to the I3C peripheral instance.
+ * @param static_addr  The static address of the device.
+ * @param dynamic_addr The new dynamic address to be set for the device.
+ *
+ * @return status_t  Returns kStatus_Success if the dynamic address is set
+ *                   successfully, or an error code from the I3C driver if
+ *                   the operation fails.
+ */
 status_t i3c_set_dynamic_address (I3C_Type * i3c, uint8_t static_addr, uint8_t dynamic_addr)
 {
     i3c_master_transfer_t master_xfer = { 0 };
@@ -158,6 +215,15 @@ status_t i3c_set_dynamic_address (I3C_Type * i3c, uint8_t static_addr, uint8_t d
     return result;
 }
 
+/**
+ * @brief Prints an error message based on the provided I3C status code.
+ *
+ * This function takes an I3C status code as input and prints an error message
+ * corresponding to the status code. The error messages are stored in a static
+ * array and accessed using the status code as an index.
+ *
+ * @param err  The I3C status code to be logged.
+ */
 void i3c_err_dbg_log (status_t err)
 {
     static const char * g_i3c_err_arr[] = {
@@ -189,6 +255,17 @@ void i3c_err_dbg_log (status_t err)
     }
 }
 
+/**
+ * @brief I3C master callback function.
+ *
+ * This function is called by the I3C master driver when a transfer is completed or an error occurs.
+ * It sets the completion flag and stores the transfer status.
+ *
+ * @param base       Pointer to the I3C peripheral instance.
+ * @param handle     Pointer to the I3C master handle.
+ * @param status     The status of the transfer.
+ * @param user_data  Pointer to user-defined data.
+ */
 static void i3c_master_callback (I3C_Type * base, i3c_master_handle_t * handle, status_t status, void * user_data)
 {
     (void)base;

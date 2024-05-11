@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright Timur Khasanshin 2024
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */

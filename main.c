@@ -1,7 +1,12 @@
-/* Example of configuring TSC1641 sensor and reading data from it */
+/*
+ * Copyright 2022 NXP
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Copyright Timur Khasanshin 2024
+ * Modifications: Temperature sensor from example has been replaced by TSC1641 sensor, improved debug logging
+ */
 
-/*  Standard C Included Files */
-#include <string.h>
 /*  SDK Included Files */
 #include "board.h"
 #include "clock_config.h"
@@ -15,9 +20,9 @@
  * Definitions
  ******************************************************************************/
 
-#define SENSOR_READOUT_PERIOD_US 20000U
-#define SENSOR_ADDR              0x08U
-#define R_SHUNT_RESISTANCE       0.005f
+#define SENSOR_READOUT_PERIOD_US 20000U /**< Period in us for reading sensor data in the main loop */
+#define SENSOR_ADDR              0x08U  /**< Dynamic address of the sensor device */
+#define EXT_SHUNT_RES_OHMS       0.005f /**< External shunt resistance in ohms for current value calculation */
 
 static tsc1641_handle_t g_tsc1641_handle = { .dbg_log_handler = i3c_err_dbg_log };
 
@@ -50,7 +55,7 @@ int main (void)
     tsc1641_cfg.write_handler      = i3c_write;
     tsc1641_cfg.read_handler       = i3c_read;
     tsc1641_cfg.addr               = SENSOR_ADDR;
-    tsc1641_cfg.shunt_val          = R_SHUNT_RESISTANCE;
+    tsc1641_cfg.shunt_val          = EXT_SHUNT_RES_OHMS;
     tsc1641_cfg.mode               = TSC1641_Mode_VshloadCont;
     tsc1641_cfg.conversion_time    = TSC1641_Conf_CT_1024;
     tsc1641_cfg.reset_state        = false;

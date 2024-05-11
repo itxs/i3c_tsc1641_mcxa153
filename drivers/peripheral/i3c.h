@@ -1,3 +1,9 @@
+/*
+ * Copyright Timur Khasanshin 2024
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 #ifndef I3C_H
 #define I3C_H
 
